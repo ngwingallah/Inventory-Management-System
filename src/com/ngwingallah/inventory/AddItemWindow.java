@@ -1,12 +1,25 @@
 package com.ngwingallah.inventory;
 
+import java.sql.Connection;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class AddItemWindow extends JFrame {
+    private final JTextField itemIdField = new JTextField(20);
+    private final JTextField itemNameField = new JTextField(20);
+    private final JTextField itemCategoryField = new JTextField(20);
+    private final JTextField itemSupplierField = new JTextField(20);
+    private final JTextField itemQuantityField = new JTextField(20);
+    private final JTextField priceField = new JTextField(20);
+    private final JButton saveButton = new JButton("Save");
+    private final JButton cancelButton = new JButton("Cancel");
+
     public AddItemWindow(){
         setTitle("ICT Canteen Inventory Management System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -95,14 +108,12 @@ public class AddItemWindow extends JFrame {
         middlePanel.add(new JLabel("Item Name:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 1;
-        JTextField itemNameField = new JTextField(20);
         middlePanel.add(itemNameField, gridBagConstraints);
 
         gridBagConstraints.gridx = 2; //Item ID
         middlePanel.add(new JLabel("Item ID:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 3;
-        JTextField itemIdField = new JTextField(20);
         middlePanel.add(itemIdField, gridBagConstraints);
 
         gridBagConstraints.gridx = 0; //Item Category
@@ -110,29 +121,25 @@ public class AddItemWindow extends JFrame {
         middlePanel.add(new JLabel("Item Category:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 1;
-        JTextField itemCategoryField = new JTextField(20);
         middlePanel.add(itemCategoryField, gridBagConstraints);
 
         gridBagConstraints.gridx = 2; //Supplier
         middlePanel.add(new JLabel("Supplier:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 3;
-        JTextField supplierField = new JTextField(20);
-        middlePanel.add(supplierField, gridBagConstraints);
+        middlePanel.add(itemSupplierField, gridBagConstraints);
 
         gridBagConstraints.gridx = 0; //Item quantity
         gridBagConstraints.gridy = 2;
         middlePanel.add(new JLabel("Item Quantity:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 1;
-        JTextField itemQuantityField = new JTextField(20);
         middlePanel.add(itemQuantityField, gridBagConstraints);
 
         gridBagConstraints.gridx = 2;
         middlePanel.add(new JLabel("Price:"), gridBagConstraints);
 
         gridBagConstraints.gridx = 3;
-        JTextField priceField = new JTextField(20);
         middlePanel.add(priceField, gridBagConstraints);
 
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
@@ -141,10 +148,24 @@ public class AddItemWindow extends JFrame {
         saveButton.setPreferredSize(new Dimension(150, 50));
         saveButton.setIcon(saveIcon);
 
+        saveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                addItem();
+            }
+        });
+
         JButton cancelButton = new JButton("Cancel");
         cancelButton.setFont(buttonFont);
         cancelButton.setPreferredSize(new Dimension(150,50));
         cancelButton.setIcon(cancelIcon);
+
+        cancelButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                cancel();
+            }
+        });
 
         buttonsPanel.setBackground(secondaryColor);
 
@@ -167,6 +188,68 @@ public class AddItemWindow extends JFrame {
         mainPanel.add(southPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
+    }
+
+    private void cancel() {
+        itemIdField.setText("");
+        itemNameField.setText("");
+        itemCategoryField.setText("");
+        itemSupplierField.setText("");
+        itemQuantityField.setText("");
+        priceField.setText("");
+    }
+
+    private void addItem() {
+        String itemId = itemIdField.getText().trim();
+        String name = itemNameField.getText().trim();
+        String category = itemCategoryField.getText().trim();
+        String quantityStr = itemQuantityField.getText().trim();
+        String supplier = itemSupplierField.getText().trim();
+        String priceStr = priceField.getText().trim();
+
+
+        if (itemId.isEmpty() || name.isEmpty() || category.isEmpty() || quantityStr.isEmpty() || supplier.isEmpty() || priceStr.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please fill in all fields.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int quantity;
+        double price;
+        try {
+            quantity = Integer.parseInt(quantityStr);
+            price = Double.parseDouble(priceStr);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Quantity must be an integer and price must be a number.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Database insertion
+        String sql = "INSERT INTO Items(ID, Name, Category, Supplier, Quantity, Price) VALUES(?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, itemId);
+            pstmt.setString(2, name);
+            pstmt.setString(3, category);
+            pstmt.setString(4, supplier);
+            pstmt.setInt(5, quantity);
+            pstmt.setDouble(6, price);
+
+            pstmt.executeUpdate();
+            JOptionPane.showMessageDialog(this, "Item added successfully!");
+
+            // Clear fields after successful addition
+            itemIdField.setText("");
+            itemNameField.setText("");
+            itemCategoryField.setText("");
+            itemSupplierField.setText("");
+            itemQuantityField.setText("");
+            priceField.setText("");
+
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error saving item: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void openSearchWindow() {
