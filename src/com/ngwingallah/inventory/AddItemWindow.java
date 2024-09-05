@@ -191,6 +191,7 @@ public class AddItemWindow extends JFrame {
     }
 
     private void cancel() {
+        //clear all text fields
         itemIdField.setText("");
         itemNameField.setText("");
         itemCategoryField.setText("");
@@ -224,7 +225,7 @@ public class AddItemWindow extends JFrame {
         }
 
         // Database insertion
-        String sql = "INSERT INTO Items(ID, Name, Category, Supplier, Quantity, Price) VALUES(?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Items(ID, Name, Category, Quantity, Supplier, Price) VALUES(?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -232,8 +233,8 @@ public class AddItemWindow extends JFrame {
             pstmt.setString(1, itemId);
             pstmt.setString(2, name);
             pstmt.setString(3, category);
-            pstmt.setString(4, supplier);
-            pstmt.setInt(5, quantity);
+            pstmt.setInt(4, quantity);
+            pstmt.setString(5, supplier);
             pstmt.setDouble(6, price);
 
             pstmt.executeUpdate();
@@ -252,11 +253,13 @@ public class AddItemWindow extends JFrame {
         }
     }
 
+    //Display search window
     private void openSearchWindow() {
         SearchItemWindow searchItemWindow = new SearchItemWindow();
         searchItemWindow.setVisible(true);
     }
 
+    //Display Home window
     private void openHomeWindow() {
         HomeWindow homeWindow = new HomeWindow();
         homeWindow.setVisible(true);

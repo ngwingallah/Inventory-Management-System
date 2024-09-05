@@ -2,12 +2,21 @@ package com.ngwingallah.inventory;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class SearchItemWindow extends JFrame {
+    private final JTextField searchTextField = new JTextField(20);
+    private final DefaultTableModel tableModel;
+
     public SearchItemWindow(){
         setTitle("Search Items");
         setSize(1024, 1024);
@@ -20,7 +29,6 @@ public class SearchItemWindow extends JFrame {
         Font subtitleFont = new Font("Segoe UI", Font.PLAIN, 20);
         Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
         Icon searchIcon = new ImageIcon("src/resources/icons8-search-30.png");
-        Icon cancelIcon = new ImageIcon("src/resources/icons8-cancel-50.png");
         Icon logoImage = new ImageIcon("src/resources/logoImage.png");
 
         JMenuBar jMenuBar = new JMenuBar();
@@ -68,6 +76,10 @@ public class SearchItemWindow extends JFrame {
         mainPanel.setBackground(secondaryColor);
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
+        JPanel topAndSearchPanel = new JPanel();
+        topAndSearchPanel.setLayout(new BoxLayout(topAndSearchPanel, BoxLayout.Y_AXIS));
+        topAndSearchPanel.setBackground(secondaryColor);
+
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         topPanel.setBackground(secondaryColor);
@@ -82,55 +94,107 @@ public class SearchItemWindow extends JFrame {
         topPanel.add(logoLabel, BorderLayout.WEST);
         topPanel.add(titleLabel, BorderLayout.CENTER);
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10)); // Use FlowLayout instead of BorderLayout
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         searchPanel.setBorder(BorderFactory.createLineBorder(primaryColor));
         searchPanel.setBackground(secondaryColor);
 
-        JPanel textFieldPanel = new JPanel(null); // Use null layout for absolute positioning
+        JPanel textFieldPanel = new JPanel(null);
         textFieldPanel.setPreferredSize(new Dimension(400, 40));
         textFieldPanel.setBackground(secondaryColor);
 
-        JTextField searchField = new JTextField("e.g. Maggi");
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-        searchField.setBounds(40, 0, 360, 40); // Leave space for icon on the left
+        searchTextField.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        searchTextField.setBounds(40, 0, 360, 40);
+        searchTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent documentEvent) {
+                searchItem();
+            }
 
-        // Create a JLabel for the search icon
+            @Override
+            public void removeUpdate(DocumentEvent documentEvent) {
+                searchItem();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent documentEvent) {
+                searchItem();
+            }
+        });
+
         JLabel searchIconLabel = new JLabel();
         searchIconLabel.setIcon(searchIcon);
         searchIconLabel.setBounds(5, 5, 40, 40);
 
-        // Add components to textFieldPanel
-        textFieldPanel.add(searchField);
+        textFieldPanel.add(searchTextField);
         textFieldPanel.add(searchIconLabel);
 
         JButton searchButton = new JButton("Search");
         searchButton.setPreferredSize(new Dimension(100, 40));
+        searchButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                searchItem();
+            }
+        });
 
         searchPanel.add(textFieldPanel);
         searchPanel.add(searchButton);
+        topAndSearchPanel.add(topPanel);
+        topAndSearchPanel.add(Box.createRigidArea(new Dimension(0, 10))); // Add some spacing
+        topAndSearchPanel.add(searchPanel);
 
         String[] columnNames = {"#", "Name", "Item ID", "Category", "Quantity", "Supplier"};
-        Object[][] data = {
-                {"1", "Maggi (packet)", "CX2024", "essentials", "2", "Dovv Messasi"}
-        };
-
-        DefaultTableModel tableModel = new DefaultTableModel(data, columnNames);
+        tableModel = new DefaultTableModel(columnNames, 0);
         JTable resultsTable = new JTable(tableModel);
         resultsTable.setRowHeight(30);
         resultsTable.setFont(new Font("Segoe UI", Font.PLAIN, 18));
 
         JScrollPane scrollPane = new JScrollPane(resultsTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
-
         JLabel footerLabel = new JLabel("© ICT University 2024", SwingConstants.CENTER);
         footerLabel.setFont(subtitleFont);
 
-        mainPanel.add(topPanel, BorderLayout.NORTH);
-        mainPanel.add(searchPanel, BorderLayout.CENTER);
-        mainPanel.add(scrollPane, BorderLayout.SOUTH);
+        mainPanel.add(topAndSearchPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
         mainPanel.add(footerLabel, BorderLayout.SOUTH);
 
         add(mainPanel);
+    }
+
+    private void searchItem() {
+        String searchText = searchTextField.getText().trim();
+
+        if (searchText.isEmpty()) {
+            tableModel.setRowCount(0);
+            return;
+        }
+
+        String sql = "SELECT ID, Name, Category, Quantity, Supplier FROM Items WHERE Name LIKE ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, searchText + "%");
+            ResultSet rs = pstmt.executeQuery();
+
+            tableModel.setRowCount(0); // Clear existing rows
+            int index = 1;
+
+            while (rs.next()) {
+                Object[] row = {
+                        index++,
+                        rs.getString("Name"),
+                        rs.getString("ID"),
+                        rs.getString("Category"),
+                        rs.getInt("Quantity"),
+                        rs.getString("Supplier")
+                };
+                tableModel.addRow(row);
+            }
+
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error searching for items: " + ex.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void openAddItemWindow() {
